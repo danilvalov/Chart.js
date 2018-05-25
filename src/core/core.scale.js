@@ -58,6 +58,8 @@ defaults._set('scale', {
 		autoSkip: true,
 		autoSkipPadding: 0,
 		labelOffset: 0,
+		lineHeight: 1.5,
+		maxLinesLength: 5,
 		// We pass through arrays to be rendered as multiline labels, we convert Others to strings here.
 		callback: Ticks.formatters.values,
 		minor: {},
@@ -692,6 +694,8 @@ module.exports = Element.extend({
 		var ticks = optionTicks.autoSkip ? me._autoSkip(me.getTicks()) : me.getTicks();
 		var tickFontColor = helpers.valueOrDefault(optionTicks.fontColor, globalDefaults.defaultFontColor);
 		var tickFont = parseFontOptions(optionTicks);
+		var tickLineHeight = optionTicks.lineHeight;
+		var tickMaxLinesLength = optionTicks.maxLinesLength;
 		var majorTickFontColor = helpers.valueOrDefault(optionMajorTicks.fontColor, globalDefaults.defaultFontColor);
 		var majorTickFont = parseFontOptions(optionMajorTicks);
 
@@ -847,28 +851,42 @@ module.exports = Element.extend({
 			if (optionTicks.display) {
 				// Make sure we draw text in the correct color and font
 				context.save();
-				context.translate(itemToDraw.labelX, itemToDraw.labelY);
+
+				var label = itemToDraw.label;
+
+				var labelX = itemToDraw.labelX;
+
+				if (helpers.isArray(label)) {
+					labelX -= ((Math.min(label.length, tickMaxLinesLength) - 1) * (((tickFont.size * tickLineHeight) / 2) + tickFont.size)) / 2;
+				}
+
+				context.translate(labelX, itemToDraw.labelY);
 				context.rotate(itemToDraw.rotation);
 				context.font = itemToDraw.major ? majorTickFont.font : tickFont.font;
 				context.fillStyle = itemToDraw.major ? majorTickFontColor : tickFontColor;
 				context.textBaseline = itemToDraw.textBaseline;
 				context.textAlign = itemToDraw.textAlign;
 
-				var label = itemToDraw.label;
 				if (helpers.isArray(label)) {
-					var lineCount = label.length;
-					var lineHeight = tickFont.size * 1.5;
+					var cLabel = label.slice();
+					var lineCount = Math.min(label.length, tickMaxLinesLength);
+					var lineHeight = tickFont.size * tickLineHeight;
 					var y = me.isHorizontal() ? 0 : -lineHeight * (lineCount - 1) / 2;
+
+					if (label.length > lineCount) {
+						cLabel[lineCount - 1] += '...';
+					}
 
 					for (var i = 0; i < lineCount; ++i) {
 						// We just make sure the multiline element is a string here..
-						context.fillText('' + label[i], 0, y);
+						context.fillText('' + cLabel[i], 0, y);
 						// apply same lineSpacing as calculated @ L#320
 						y += lineHeight;
 					}
 				} else {
 					context.fillText(label, 0, 0);
 				}
+
 				context.restore();
 			}
 		});
